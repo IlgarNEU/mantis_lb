@@ -85,6 +85,15 @@ pub fn read_sketch(path: &str) -> KmerMinHash {
     KmerMinHash::from_reader(reader).expect("missing")
 }
 
+pub fn read_sketches_from_dir(sketches_dir: &str) -> Vec<KmerMinHash> {
+    let paths = fs::read_dir(sketches_dir).unwrap();
+    let mut sketches: Vec<KmerMinHash> = Vec::new();
+    for path in paths {
+        sketches.push(read_sketch(path.unwrap().path().to_str().expect("error")));
+    }
+    sketches
+}
+
 // make n initial sketches, just using a round-robin for load balancing
 pub fn make_initial_sketch(
     fastq_dir: &str,
@@ -125,4 +134,56 @@ pub fn make_initial_sketch(
         );
     }
     sketches
+}
+
+pub fn select_most_similar_sketch(
+    sketches: &Vec<KmerMinHash>,
+    fastq_file_path: &str,
+    scaled: u32,
+    ksize: u32,
+) -> (usize, f64, KmerMinHash) {
+    // initialize as empty
+    let mut most_similar: (usize, f64, KmerMinHash) = (
+        0,
+        0.00,
+        KmerMinHash::new(0, 0, HashFunctions::Murmur64Dna, 0, false, 0),
+    );
+    for (i, sketch) in sketches.iter().enumerate() {
+        // use seed of current sketch //
+        let new_sketch = sketch_file(fastq_file_path, scaled, ksize, Some(sketch.seed()));
+        let cur_sim = new_sketch.similarity(sketch, false, false).expect("error");
+        if cur_sim > most_similar.1 {
+            most_similar = (i, cur_sim, new_sketch);
+        }
+        println!("Cluster {i} has sim {cur_sim}")
+    }
+    most_similar
+}
+
+pub fn load_ballance_new_fastq_files(
+    fastq_dir: &str,
+    n: u32,
+    scaled: u32,
+    ksize: u32,
+    sig_dir: &str,
+) {
+    let mut sketches = read_sketches_from_dir(&sig_dir);
+    let paths = fs::read_dir(fastq_dir).unwrap();
+    for path in paths {
+        let most_similar = select_most_similar_sketch(
+            &sketches,
+            path.unwrap().path().to_str().expect("error"),
+            scaled,
+            ksize,
+        );
+        sketches[most_similar.0]
+            .merge(&most_similar.2)
+            .expect("error")
+    }
+    for i in 0..n {
+        write_sketch(
+            format!("{sig_dir}/cluster_sketch_{}.sig", i).as_str(),
+            &sketches[i as usize],
+        );
+    }
 }

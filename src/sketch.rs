@@ -106,9 +106,9 @@ pub fn make_initial_sketch(
     let mut sketches: Vec<KmerMinHash> = Vec::new();
     for _ in 0..n {
         let seed: u64 = random();
-        sketches.push((
-            KmerMinHash::new(scaled, ksize, HashFunctions::Murmur64Dna, seed, false, 0),
-        ));
+        sketches.push(
+            KmerMinHash::new(scaled, ksize, HashFunctions::Murmur64Dna, seed, false, 0)
+        );
     }
     let paths = fs::read_dir(fastq_dir).unwrap();
     for (i, path) in paths.enumerate() {
@@ -120,7 +120,7 @@ pub fn make_initial_sketch(
                 path.to_str().expect("missing_path"),
                 scaled,
                 ksize,
-                Some(sketches[idx].0),
+                Some(sketches[idx].seed()),
             );
             sketches[idx].merge(&file_sketch).unwrap();
         }
@@ -164,7 +164,7 @@ pub fn run_round_robin(
         } else{
             None
         }
-    }).collect()
+    }).collect();
 
     paths.sort();
 
@@ -216,7 +216,7 @@ pub fn run_similarity(
     let mut assignments: HashMap<String, usize> = HashMap::new();
 
     let paths: Vec<_> = fs::read_dir(incoming_dir).unwrap().filter_map(|p|{
-        let path = p.unwrap().path()
+        let path = p.unwrap().path();
         let ext = path.extension().and_then(|e| e.to_str()).map(str::to_owned);
         if ext.as_deref() == Some("fastq") || ext.as_deref() == Some("fastq.gz"){
             Some(path)
@@ -243,8 +243,8 @@ pub fn run_similarity(
 pub fn write_assignments(path: &str, assignments: &HashMap<String, usize>) {
     use std::io::Write;
 
-    let mut entries: Vec<_> assignments.iter().collect();
-    entried.sort_by_key(|(filename, _)| filename.as_str());
+    let mut entries: Vec<_> = assignments.iter().collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
 
     let mut file = fs::File::create(path).unwrap();
     writeln!(file, "filename, cluster").unwrap();

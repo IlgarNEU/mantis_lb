@@ -170,7 +170,7 @@ fn main() {
         } => {
             println!("Running round robin from {incoming_dir}");
             let sketches = read_sketches_from_dir(&sig_dir);
-            let assignments = run_round_robin(&incoming_dir, sketches, scaled, ksize);
+            let assignments = run_round_robin(&incoming_dir, sketches, scaled, ksize, &format!("{output}/rr_final_sketches"));
             write_assignments(&output, &assignments);
             println!("Done. Assignments written to {output}");
         }
@@ -180,7 +180,7 @@ fn main() {
         } => {
             println!("Running similarity assignment from {incoming_dir}");
             let sketches = read_sketches_from_dir(&sig_dir);
-            let assignments = run_similarity(&incoming_dir, sketches, scaled, ksize);
+            let assignments = run_similarity(&incoming_dir, sketches, scaled, ksize, &format!("{output}/sim_final_sketches"));
             write_assignments(&output, &assignments);
             println!("Done. Assignments written to {output}");
         }
